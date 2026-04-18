@@ -1,0 +1,28 @@
+name: Longears Dependency Update
+description: Scans dependencies and fetches registry metadata for later PR creation
+author: gip-ventures
+
+inputs:
+  config-path:
+    description: Path to the longears.yml config file within the workspace
+    default: .github/longears.yml
+  workspace-dir:
+    description: Root directory of the repository to scan
+    default: ${{ github.workspace }}
+  force:
+    description: Run all configured ecosystems regardless of their schedule
+    default: 'false'
+  github-token:
+    description: GitHub token used for querying GitHub Actions registry and API rate limits
+    default: ${{ github.token }}
+  output-file:
+    description: File path where scan results JSON will be written
+    default: longears-results.json
+
+outputs:
+  results-path:
+    description: Absolute path to the JSON file containing all scan results
+
+runs:
+  using: node20
+  main: dist/index.js

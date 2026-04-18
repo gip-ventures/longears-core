@@ -1,0 +1,39 @@
+name: Longears Self-Update (Dogfood)
+
+on:
+  schedule:
+    # Run every hour; the action itself checks per-ecosystem schedules
+    - cron: "0 * * * *"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: Run all ecosystems regardless of their configured schedule
+        type: boolean
+        default: false
+
+jobs:
+  scan:
+    name: Dependency Metadata Scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run Longears
+        uses: ./
+        id: longears
+        with:
+          config-path: .github/longears.yml
+          force: ${{ inputs.force || 'false' }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          output-file: longears-results.json
+
+      - name: Upload scan results
+        uses: actions/upload-artifact@v4
+        with:
+          name: longears-results
+          path: longears-results.json
+          retention-days: 7
