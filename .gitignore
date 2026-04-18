@@ -1,0 +1,13 @@
+node_modules/
+# Compiled TypeScript (intermediate), but keep the ncc bundle
+dist/*.js.map
+dist/*.d.ts
+dist/*.d.ts.map
+# Exclude everything except the bundled index.js
+dist/main.js
+dist/config/
+dist/registries/
+dist/manifest-parsers/
+dist/scheduler.js
+dist/metadata-logger.js
+longears-results.json
