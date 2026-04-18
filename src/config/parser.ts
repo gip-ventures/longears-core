@@ -79,7 +79,7 @@ const updateConfigSchema = z.object({
   directories: z.array(z.string()).optional(),
   schedule: scheduleSchema.optional(),
   "multi-ecosystem-group": z.string().optional(),
-  groups: z.record(groupConfigSchema).optional(),
+  groups: z.record(z.string(), groupConfigSchema).optional(),
   ignore: z.array(ignoreRuleSchema).optional(),
   patterns: z.array(z.string()).optional(),
 });
@@ -87,7 +87,7 @@ const updateConfigSchema = z.object({
 const longearsConfigSchema = z.object({
   version: z.literal(2),
   "multi-ecosystem-groups": z
-    .record(z.object({ schedule: scheduleSchema }))
+    .record(z.string(), z.object({ schedule: scheduleSchema }))
     .optional(),
   updates: z.array(updateConfigSchema),
 });
