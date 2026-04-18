@@ -154,7 +154,20 @@ Supported `update-types` values: `major`, `minor`, `patch`, `version-update:semv
 
 ## Output File Format
 
-The action writes a JSON file at the path specified by `output-file`. Example:
+The output file is written to the runner's filesystem and is **temporary** — it is deleted when the job ends. To persist it, upload it as an artifact:
+
+```yaml
+- name: Upload scan results
+  uses: actions/upload-artifact@v4
+  with:
+    name: longears-results
+    path: ${{ steps.longears.outputs.results-path }}
+    retention-days: 7  # adjust as needed; max 90 days
+```
+
+The action also exposes `results-path` as an output so downstream steps in the same job can read the file before it disappears.
+
+Example JSON written to `output-file`:
 
 ```json
 {
