@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-**Longears** is a TypeScript/Node.js GitHub Action (Node 20, entrypoint `dist/index.js`) that reads a `longears.yml` configuration file, determines which package ecosystems are scheduled to run, globs their manifest files, deduplicates dependencies by name (first-occurrence wins), and queries each registry in parallel via `Promise.allSettled()`. Results are written to a JSON file.
+**Longears** is a TypeScript/Node.js GitHub Action (Node 24, entrypoint `dist/index.js`) that reads a `longears.yml` configuration file, determines which package ecosystems are scheduled to run, globs their manifest files, deduplicates dependencies by name (first-occurrence wins), and queries each registry in parallel via `Promise.allSettled()`. Results are written to a JSON file.
 
 **Scope boundary:** Longears only collects dependency metadata. It does not open pull requests — that is a downstream concern.
 
@@ -14,7 +14,7 @@
 
 ```
 longears-core/
-  action.yml                    # GitHub Action metadata; runtime=node20, main=dist/index.js
+  action.yml                    # GitHub Action metadata; runtime=node24, main=dist/index.js
   dist/
     index.js                    # Committed esbuild bundle — do NOT gitignore this file
   src/
