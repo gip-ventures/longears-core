@@ -27,7 +27,11 @@ Longears reads a `longears.yml` configuration file, determines which ecosystems 
 
 ## Usage
 
-Add a workflow that runs Longears on a schedule:
+Choose one of two trigger strategies — schedule-based or push-based. Both support `workflow_dispatch` for manual runs.
+
+### Option A: Schedule-based
+
+Longears runs on a cron and uses per-ecosystem schedules in `longears.yml` to decide what actually executes each run.
 
 ```yaml
 name: Dependency Scan
@@ -67,22 +71,18 @@ jobs:
           path: ${{ steps.longears.outputs.results-path }}
 ```
 
-### Push trigger
+### Option B: Push-based
 
-You can add a `push` trigger so Longears also runs immediately when a manifest file is changed, rather than waiting for the next cron tick. Set `force: true` on push events so the per-ecosystem schedule gate is bypassed — otherwise runs landing outside the configured time window are silently skipped.
+Longears runs immediately when a manifest file is pushed to `main`. `force: true` is always set so the per-ecosystem schedule gate is bypassed — runs triggered by a file change should always execute regardless of the configured time window.
 
 Include only the manifest file patterns for the ecosystems you have configured. The example below covers all 14 supported ecosystems; trim it to match your `longears.yml`.
 
+> **Note:** `.github/workflows/*.yml` is intentionally omitted from the `paths` list. Including it would cause this workflow to retrigger itself on every edit. The github-actions ecosystem is not covered by this trigger strategy — remove it from your `longears.yml` or switch to Option A if you need it.
+
 ```yaml
+name: Dependency Scan
+
 on:
-  schedule:
-    - cron: "0 * * * *"
-  workflow_dispatch:
-    inputs:
-      force:
-        description: Run all ecosystems regardless of their configured schedule
-        type: boolean
-        default: false
   push:
     branches:
       - main
@@ -111,15 +111,13 @@ on:
       - "docker-compose.yml"
       - "docker-compose.yaml"
       - "mix.exs"
-      # .github/workflows/*.yml is intentionally omitted — including it would
-      # cause this workflow to retrigger itself on every edit; the hourly cron
-      # already covers the github-actions ecosystem
       - "pubspec.yaml"
       - "pubspec.yml"
       - ".devcontainer/devcontainer.json"
       - ".devcontainer.json"
       - ".devcontainer/**/devcontainer.json"
       - ".gitmodules"
+  workflow_dispatch:
 
 jobs:
   scan:
@@ -135,8 +133,7 @@ jobs:
         id: longears
         with:
           config-path: .github/longears.yml
-          # On push: bypass schedule gate. On workflow_dispatch: respect checkbox.
-          force: ${{ github.event_name == 'push' && 'true' || inputs.force || 'false' }}
+          force: 'true'
           github-token: ${{ secrets.GITHUB_TOKEN }}
           output-file: longears-results.json
 

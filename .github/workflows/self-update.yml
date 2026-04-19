@@ -10,55 +10,6 @@ on:
         description: Run all ecosystems regardless of their configured schedule
         type: boolean
         default: false
-  push:
-    branches:
-      - main
-    paths:
-      # npm
-      - "package.json"
-      # pip
-      - "requirements.txt"
-      - "requirements/**/*.txt"
-      - "requirements-*.txt"
-      - "Pipfile"
-      - "pyproject.toml"
-      # bundler
-      - "Gemfile"
-      - "Gemfile.lock"
-      # maven
-      - "pom.xml"
-      - "**/pom.xml"
-      # gomod
-      - "go.mod"
-      # composer
-      - "composer.json"
-      # nuget
-      - "**/*.csproj"
-      - "**/*.fsproj"
-      - "**/*.vbproj"
-      - "**/packages.config"
-      - "**/Directory.Packages.props"
-      # dotnet-sdk
-      - "global.json"
-      # docker
-      - "Dockerfile"
-      - "Dockerfile.*"
-      - "*.dockerfile"
-      - "docker-compose.yml"
-      - "docker-compose.yaml"
-      # mix
-      - "mix.exs"
-      # github-actions: .github/workflows/*.yml deliberately omitted — would
-      # cause self-update.yml to retrigger itself; hourly cron covers this ecosystem
-      # pub
-      - "pubspec.yaml"
-      - "pubspec.yml"
-      # devcontainers
-      - ".devcontainer/devcontainer.json"
-      - ".devcontainer.json"
-      - ".devcontainer/**/devcontainer.json"
-      # gitsubmodule
-      - ".gitmodules"
 
 jobs:
   scan:
@@ -76,10 +27,7 @@ jobs:
         id: longears
         with:
           config-path: .github/longears.yml
-          # On push: bypass schedule gate so the scan actually runs.
-          # On workflow_dispatch: respect the force checkbox.
-          # On schedule: default to false.
-          force: ${{ github.event_name == 'push' && 'true' || inputs.force || 'false' }}
+          force: ${{ inputs.force || 'false' }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           output-file: longears-results.json
 
