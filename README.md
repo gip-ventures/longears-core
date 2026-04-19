@@ -213,6 +213,18 @@ git push origin v1 --force
 
 This is intentional — consumers referencing `@v1` receive the update on their next run.
 
+## Debugging
+
+Set the `ACTIONS_STEP_DEBUG` secret to `true` in your repository (Settings → Secrets and variables → Actions) to enable debug logging for the action run. When enabled, Longears emits additional log lines showing which files are globbed, how many dependencies are parsed per file, how many duplicates are removed, and which packages are skipped because the registry returned no data.
+
+```yaml
+steps:
+  - name: Run Longears
+    uses: gip-ventures/longears-core@v1
+    env:
+      ACTIONS_STEP_DEBUG: true   # or set as a repository secret
+```
+
 ## Development
 
 ```bash
