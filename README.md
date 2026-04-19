@@ -182,6 +182,37 @@ The action writes a JSON file at the path specified by `output-file`. Example:
 }
 ```
 
+## Versioning
+
+Longears follows the [GitHub Actions versioning convention](https://docs.github.com/en/actions/sharing-automations/creating-actions/about-custom-actions#using-release-management-for-actions) using a mutable major-version tag (`v1`) that always points to the latest stable commit on that major version.
+
+### Recommended: pin to the major version tag
+
+```yaml
+uses: gip-ventures/longears-core@v1
+```
+
+This is the standard approach. The `v1` tag is force-updated with every release, so your workflow automatically picks up bug fixes and new features without any changes on your end.
+
+### Pin to a specific commit SHA
+
+```yaml
+uses: gip-ventures/longears-core@3f3ef404a787497e6d146e28279bca82e32d2c40
+```
+
+Use this when you need reproducible runs and want to opt in to upgrades manually. Copy the full 40-character SHA from the [commits page](https://github.com/gip-ventures/longears-core/commits/main).
+
+### Keeping the `v1` tag current (maintainers)
+
+After merging changes that should be released, force-move the `v1` tag to the new HEAD:
+
+```bash
+git tag -f v1 <commit-sha>
+git push origin v1 --force
+```
+
+This is intentional — consumers referencing `@v1` receive the update on their next run.
+
 ## Development
 
 ```bash
