@@ -74,12 +74,15 @@ async function run(): Promise<void> {
       const allDeps: Dependency[] = [];
       for (const pattern of parser.filePatterns) {
         const absolutePattern = path.join(absoluteDir, pattern);
+        core.debug(`[${ecosystem}] Globbing: ${absolutePattern}`);
         const globber = await createGlobber(absolutePattern, { followSymbolicLinks: false });
         const files = await globber.glob();
+        core.debug(`[${ecosystem}] Matched ${files.length} file(s) for pattern "${pattern}"`);
 
         for (const filePath of files) {
           const content = fs.readFileSync(filePath, "utf8");
           const deps = parser.parse(filePath, content);
+          core.debug(`[${ecosystem}] Parsed ${filePath}: ${deps.length} dep(s)`);
           allDeps.push(...deps);
         }
       }
@@ -91,6 +94,11 @@ async function run(): Promise<void> {
         seen.add(d.name);
         return true;
       });
+
+      const duplicateCount = allDeps.length - uniqueDeps.length;
+      if (duplicateCount > 0) {
+        core.debug(`[${ecosystem}] Removed ${duplicateCount} duplicate(s); ${uniqueDeps.length} unique`);
+      }
 
       core.info(
         `[${ecosystem}] Found ${uniqueDeps.length} unique packages in ${directory}`
@@ -110,6 +118,7 @@ async function run(): Promise<void> {
           }
 
           if (!metadata) {
+            core.debug(`[${ecosystem}] Skipped "${dep.name}" — registry returned null`);
             skipped++;
             return;
           }
