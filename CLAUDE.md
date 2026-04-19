@@ -303,13 +303,15 @@ Written to `longears-results.json` (gitignored) by `src/metadata-logger.ts`:
 ## CI/CD Notes
 
 **Workflow:** `.github/workflows/self-update.yml`
-- Triggers: hourly cron (`0 * * * *`) and `workflow_dispatch` (with optional `force` input)
+- Triggers: hourly cron (`0 * * * *`), `workflow_dispatch` (with optional `force` input), and `push` to `main` when a manifest file changes
 - Uses `uses: ./` — the local action ref, which means it always tests the committed `dist/index.js`
 - Requires only `contents: read` permission
 - Uploads results as a `longears-results` artifact (7-day retention); nothing is committed back
 - `longears-results.json` is gitignored
 
-The hourly cron fires every hour; per-ecosystem schedules in `.github/longears.yml` control which ecosystems actually execute each run.
+The hourly cron fires every hour; per-ecosystem schedules in `.github/longears.yml` control which ecosystems actually execute each run. On push events `force: true` is passed automatically so the schedule gate is bypassed.
+
+**Push trigger paths must stay in sync with parser `filePatterns`:** The `push:` trigger in `.github/workflows/self-update.yml` contains a `paths:` allowlist that is a manual mirror of the `filePatterns` arrays in `src/manifest-parsers/`. When adding a new ecosystem, add its file patterns to both places. Note: `.github/workflows/*.yml` is deliberately omitted from the push paths to prevent `self-update.yml` from retriggering itself — the hourly cron covers the github-actions ecosystem.
 
 ---
 

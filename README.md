@@ -67,6 +67,86 @@ jobs:
           path: ${{ steps.longears.outputs.results-path }}
 ```
 
+### Push trigger
+
+You can add a `push` trigger so Longears also runs immediately when a manifest file is changed, rather than waiting for the next cron tick. Set `force: true` on push events so the per-ecosystem schedule gate is bypassed — otherwise runs landing outside the configured time window are silently skipped.
+
+Include only the manifest file patterns for the ecosystems you have configured. The example below covers all 14 supported ecosystems; trim it to match your `longears.yml`.
+
+```yaml
+on:
+  schedule:
+    - cron: "0 * * * *"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: Run all ecosystems regardless of their configured schedule
+        type: boolean
+        default: false
+  push:
+    branches:
+      - main
+    paths:
+      - "package.json"
+      - "requirements.txt"
+      - "requirements/**/*.txt"
+      - "requirements-*.txt"
+      - "Pipfile"
+      - "pyproject.toml"
+      - "Gemfile"
+      - "Gemfile.lock"
+      - "pom.xml"
+      - "**/pom.xml"
+      - "go.mod"
+      - "composer.json"
+      - "**/*.csproj"
+      - "**/*.fsproj"
+      - "**/*.vbproj"
+      - "**/packages.config"
+      - "**/Directory.Packages.props"
+      - "global.json"
+      - "Dockerfile"
+      - "Dockerfile.*"
+      - "*.dockerfile"
+      - "docker-compose.yml"
+      - "docker-compose.yaml"
+      - "mix.exs"
+      # .github/workflows/*.yml is intentionally omitted — including it would
+      # cause this workflow to retrigger itself on every edit; the hourly cron
+      # already covers the github-actions ecosystem
+      - "pubspec.yaml"
+      - "pubspec.yml"
+      - ".devcontainer/devcontainer.json"
+      - ".devcontainer.json"
+      - ".devcontainer/**/devcontainer.json"
+      - ".gitmodules"
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Longears
+        uses: gip-ventures/longears-core@v1
+        id: longears
+        with:
+          config-path: .github/longears.yml
+          # On push: bypass schedule gate. On workflow_dispatch: respect checkbox.
+          force: ${{ github.event_name == 'push' && 'true' || inputs.force || 'false' }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          output-file: longears-results.json
+
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        with:
+          name: longears-results
+          path: ${{ steps.longears.outputs.results-path }}
+```
+
 ## Configuration
 
 Create `.github/longears.yml` in your repository:
