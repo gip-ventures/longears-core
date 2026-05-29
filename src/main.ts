@@ -2,6 +2,7 @@ import * as path from "path";
 import * as fs from "fs";
 import * as core from "@actions/core";
 import axios from "axios";
+import { API_ENDPOINT } from "./config/constants";
 import { create as createGlobber } from "@actions/glob";
 import { parseConfig } from "./config/parser";
 import { isUpdateDue, resolveDirectories } from "./scheduler";
@@ -157,11 +158,10 @@ async function run(): Promise<void> {
   core.setOutput("results-path", absoluteOutputFile);
 
   const apiKey = core.getInput("api-key");
-  const apiEndpoint = core.getInput("api-endpoint");
-  if (apiKey && apiEndpoint) {
+  if (apiKey) {
     core.info("Longears: delivering report to ingest API...");
     try {
-      const response = await axios.post(apiEndpoint, report, {
+      const response = await axios.post(API_ENDPOINT, report, {
         headers: {
           "Authorization": `Bearer ${apiKey}`,
           "Content-Type":  "application/json",

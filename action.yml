@@ -21,9 +21,6 @@ inputs:
   api-key:
     description: API key for the Longears Cloud Run ingest endpoint; if omitted the report is only written to output-file
     default: ''
-  api-endpoint:
-    description: URL of the Longears Cloud Run ingest endpoint
-    default: ''
 
 outputs:
   results-path:

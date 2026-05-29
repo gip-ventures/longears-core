@@ -31,7 +31,6 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           output-file: longears-results.json
           api-key: ${{ secrets.LONGEARS_API_KEY }}
-          api-endpoint: ${{ vars.LONGEARS_API_ENDPOINT }}
 
       - name: Upload scan results
         uses: actions/upload-artifact@v4
