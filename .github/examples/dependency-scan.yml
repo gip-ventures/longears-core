@@ -1,0 +1,35 @@
+name: Dependency Scan
+
+on:
+  schedule:
+    - cron: "0 * * * *"   # run hourly; per-ecosystem schedules control what actually executes
+  workflow_dispatch:
+    inputs:
+      force:
+        description: Run all ecosystems regardless of their configured schedule
+        type: boolean
+        default: false
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Longears
+        uses: gip-ventures/longears-core@v1
+        id: longears
+        with:
+          config-path: .github/longears.yml
+          force: ${{ inputs.force || 'false' }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          output-file: longears-results.json
+
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        with:
+          name: longears-results
+          path: ${{ steps.longears.outputs.results-path }}
