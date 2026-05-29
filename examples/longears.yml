@@ -1,0 +1,21 @@
+version: 2
+
+# Optional: define shared schedules that multiple ecosystems can reference
+multi-ecosystem-groups:
+  monthly-low-priority:
+    schedule:
+      interval: monthly
+      time: "16:00"
+      timezone: "UTC"
+
+updates:
+  - package-ecosystem: npm
+    directory: /          # root of the repo; use directories: [/a, /b] for multiple
+    schedule:
+      interval: weekly
+      day: sunday
+      time: "16:00"
+      timezone: "UTC"
+    groups:
+      all-dependencies:
+        patterns: ["*"]
