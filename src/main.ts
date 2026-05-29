@@ -2,8 +2,6 @@ import * as path from "path";
 import * as fs from "fs";
 import * as core from "@actions/core";
 import axios from "axios";
-
-const API_ENDPOINT = "https://longears-api-<hash>-ew.a.run.app/ingest";
 import { create as createGlobber } from "@actions/glob";
 import { parseConfig } from "./config/parser";
 import { isUpdateDue, resolveDirectories } from "./scheduler";
@@ -159,10 +157,11 @@ async function run(): Promise<void> {
   core.setOutput("results-path", absoluteOutputFile);
 
   const apiKey = core.getInput("api-key");
-  if (apiKey) {
+  const apiEndpoint = core.getInput("api-endpoint");
+  if (apiKey && apiEndpoint) {
     core.info("Longears: delivering report to ingest API...");
     try {
-      const response = await axios.post(API_ENDPOINT, report, {
+      const response = await axios.post(apiEndpoint, report, {
         headers: {
           "Authorization": `Bearer ${apiKey}`,
           "Content-Type":  "application/json",
