@@ -30,10 +30,6 @@ jobs:
           force: ${{ inputs.force || 'false' }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           output-file: longears-results.json
-
-      - name: Send report
-        uses: ./actions/report
-        with:
           api-key: ${{ secrets.LONGEARS_API_KEY }}
 
       - name: Upload scan results

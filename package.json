@@ -4,7 +4,7 @@
   "description": "Dependency metadata collection service — a Dependabot-like GitHub Action",
   "main": "dist/main.js",
   "scripts": {
-    "build": "tsc --noEmit && tsc --noEmit --project actions/report/tsconfig.json && esbuild src/main.ts --bundle --platform=node --format=cjs --outfile=dist/index.js --minify && esbuild actions/report/src/main.ts --bundle --platform=node --format=cjs --outfile=actions/report/dist/index.js --minify",
+    "build": "tsc --noEmit && esbuild src/main.ts --bundle --platform=node --format=cjs --outfile=dist/index.js --minify",
     "compile": "tsc",
     "test": "jest --passWithNoTests",
     "lint": "eslint src/**/*.ts"

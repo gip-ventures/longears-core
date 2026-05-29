@@ -18,6 +18,9 @@ inputs:
   output-file:
     description: File path where scan results JSON will be written
     default: longears-results.json
+  api-key:
+    description: API key for the Longears Cloud Run ingest endpoint; if omitted the report is only written to output-file
+    default: ''
 
 outputs:
   results-path:
