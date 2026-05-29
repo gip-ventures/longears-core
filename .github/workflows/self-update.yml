@@ -22,14 +22,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Run Longears
+      - name: Scan dependencies
         uses: ./
-        id: longears
+        id: scan
         with:
           config-path: .github/longears.yml
           force: ${{ inputs.force || 'false' }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           output-file: longears-results.json
+
+      - name: Send report
+        uses: ./actions/report
+        with:
+          api-key: ${{ secrets.LONGEARS_API_KEY }}
 
       - name: Upload scan results
         uses: actions/upload-artifact@v4
