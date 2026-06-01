@@ -21,6 +21,9 @@ inputs:
   api-key:
     description: API key for the Longears Cloud Run ingest endpoint; if omitted the report is only written to output-file
     default: ''
+  api-endpoint:
+    description: Full URL of the Longears ingest endpoint (e.g. https://longears-api-<hash>-ew.a.run.app/ingest); required when api-key is provided
+    default: ''
 
 outputs:
   results-path:
