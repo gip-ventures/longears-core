@@ -40,6 +40,10 @@ longears-core/
     longears.yml                # Self-dogfood config (npm, weekly Sunday 16:00)
     workflows/
       self-update.yml           # Runs Longears on itself hourly; uploads artifact
+  examples/
+    README.md                   # Placement guide for the two example files
+    longears.yml                # Example Longears config (multi-ecosystem-groups, npm)
+    dependency-scan.yml         # Example GitHub Actions workflow for running Longears
 ```
 
 ---
