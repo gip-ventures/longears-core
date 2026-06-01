@@ -1,123 +1,100 @@
-# Cloud Run Implementation Requirements
+# Cloud Run Ingest Service — Requirements
 
-## Context
+## What This Is
 
-Longears currently runs as a GitHub Action: a scheduled workflow checks out a repository,
-runs the Node process, and writes `longears-results.json` to the workspace. The action
-already has two optional inputs — `api-key` and `api-endpoint` — that POST the report
-to an external ingest endpoint when set.
+A standalone Python Cloud Run service (separate repository) that receives dependency
+scan reports from the Longears GitHub Action and processes them further.
 
-A Cloud Run deployment makes Longears a persistent HTTP service that can be triggered
-by Cloud Scheduler or webhook, removing the dependency on a GitHub Actions runner for
-every scan.
+The Longears action already supports delivery: when `api-key` and `api-endpoint` inputs
+are configured, it POSTs the completed scan report to that URL with
+`Authorization: Bearer <api-key>`. The Cloud Run service is the receiving end of that
+call.
 
 ---
 
-## What Needs to Be Built
+## Ingest Endpoint
 
-### 1. HTTP Entry Point
+**`POST /ingest`**
 
-Replace `@actions/core.getInput()` calls in `src/main.ts` with an Express (or Node
-`http`) request handler. The service must expose:
+Receives the Longears scan report after every successful action run.
 
-- `POST /scan` — run a dependency scan
-- `GET /health` — liveness probe for Cloud Run
+### Authentication
 
-**Request body (`POST /scan`):**
+All requests must carry the header:
+```
+Authorization: Bearer <api-key>
+```
+The service validates the key against a secret stored in Secret Manager (or an env var).
+Requests with a missing or wrong key return `401`.
+
+### Request Body
+
+The exact JSON the Longears action sends (`ScanReport` v1):
+
 ```json
 {
-  "config_path":   ".github/longears.yml",
-  "workspace_dir": "/workspace",
-  "force":         false,
-  "github_token":  "ghp_...",
-  "output_file":   "longears-results.json"
+  "version": 1,
+  "generated_at": "2026-06-01T12:00:00.000Z",
+  "results": [
+    {
+      "ecosystem": "npm",
+      "directory": "/",
+      "scanned_at": "2026-06-01T12:00:01.000Z",
+      "packages": [
+        {
+          "name": "express",
+          "current_version": "4.18.2",
+          "latest_version": "4.19.0",
+          "update_available": true,
+          "dependency_type": "production",
+          "registry_url": "https://registry.npmjs.org/express",
+          "published_at": "2024-03-01T10:00:00.000Z"
+        }
+      ],
+      "skipped_packages": 0
+    }
+  ]
 }
 ```
 
-All fields mirror the existing action inputs; `workspace_dir` must point to a directory
-already mounted or cloned before the request is issued.
+Field notes:
+- `version` is always the integer `1`
+- `current_version` may be `null` if the manifest didn't pin a version
+- `published_at` is optional — not all registries provide it
+- `skipped_packages` counts packages where the registry returned no data
 
-**Response:** the full `ScanReport` JSON on success, or `{ "error": "..." }` with an
-appropriate HTTP status on failure.
+### Response
 
-### 2. Repository Cloning
-
-The action relies on the GitHub Actions runner to check out the repository before it
-runs. Cloud Run has no such pre-step. Two options:
-
-- **Option A (simpler):** Accept an additional `repository_url` field in the request
-  body; the service clones the repo to a temp directory, runs the scan, then deletes
-  the clone.
-- **Option B (volume mount):** Require the caller to mount a pre-populated volume at
-  `workspace_dir`. Keeps the service stateless but shifts the cloning concern to the
-  caller (e.g., a Cloud Build step).
-
-Option A is recommended for self-contained deployments; Option B for pipelines that
-already manage checkouts.
-
-### 3. Authentication
-
-| Secret | Current source | Cloud Run source |
-|---|---|---|
-| `github-token` | `${{ github.token }}` automatic | Request body field OR `GITHUB_TOKEN` env var |
-| `api-key` | Action input | `API_KEY` env var (verified against `Authorization: Bearer` on incoming requests) |
-
-The service should reject requests missing a valid `api-key` when the env var is set,
-allowing the endpoint to be locked down.
-
-### 4. Logging
-
-Replace all `core.info()` / `core.warning()` / `core.setFailed()` calls with
-`console.log()` / `console.error()` writing structured JSON lines so Cloud Logging
-can index them:
-
-```json
-{ "severity": "INFO",  "message": "..." }
-{ "severity": "ERROR", "message": "...", "error": "..." }
-```
-
-### 5. Scheduling
-
-Cloud Scheduler issues an authenticated `POST /scan` to the service on whatever
-cron cadence is required. The existing `isUpdateDue()` logic in `scheduler.ts`
-remains unchanged — it still decides which ecosystems actually run on each invocation.
-No changes to `scheduler.ts` are needed.
-
-### 6. Container Image
-
-Minimum `Dockerfile`:
-```dockerfile
-FROM node:24-alpine
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci --omit=dev
-COPY dist/index.js ./dist/
-CMD ["node", "dist/index.js"]
-```
-
-`npm run build` must be re-run and `dist/index.js` committed before building the image,
-consistent with the existing build convention.
-
-**Environment variables read at runtime:**
-- `PORT` — Cloud Run injects this; service must listen on it (default `8080`)
-- `GITHUB_TOKEN` — fallback when not supplied in request body
-- `API_KEY` — when set, requires matching `Authorization: Bearer` on all `/scan` requests
+- `200` — report accepted and processed
+- `400` — malformed payload
+- `401` — missing or invalid API key
+- `500` — internal error
 
 ---
 
-## What Does NOT Change
+## Further Processing (to be defined)
 
-- All 14 manifest parsers (`src/manifest-parsers/`) — no changes needed
-- All 14 registry clients (`src/registries/`) — no changes needed
-- Config parser and Zod schema (`src/config/`) — no changes needed
-- Scheduler logic (`src/scheduler.ts`) — no changes needed
-- Output JSON schema (`src/metadata-logger.ts`) — no changes needed
-- `npm run build` convention: always regenerate and commit `dist/index.js`
+The service receives the report and should do one or more of the following — exact
+behaviour to be specified before implementation:
+
+- Store results (e.g. BigQuery, Firestore, Cloud Storage)
+- Trigger notifications (e.g. Slack, email) when `update_available: true` packages
+  exceed a threshold
+- Expose a read API for dashboards
+- Deduplicate or diff against a previous scan
 
 ---
 
-## Out of Scope
+## Connecting the Action
 
-- Opening pull requests (not Longears' responsibility per design)
-- Storing scan history (downstream concern; service returns the report, caller persists it)
-- Multi-tenant isolation (single-tenant deployment assumed)
+In the repository running Longears, set these two inputs in the workflow:
+
+```yaml
+- uses: gip-ventures/longears-core@main
+  with:
+    github-token: ${{ secrets.GITHUB_TOKEN }}
+    api-key:      ${{ secrets.LONGEARS_API_KEY }}
+    api-endpoint: https://<cloud-run-url>/ingest
+```
+
+The action will POST the report to the service after every scan.
