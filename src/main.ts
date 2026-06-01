@@ -3,7 +3,6 @@ import * as fs from "fs";
 import * as core from "@actions/core";
 import axios from "axios";
 
-const API_ENDPOINT = "https://longears-api-<hash>-ew.a.run.app/ingest";
 import { create as createGlobber } from "@actions/glob";
 import { parseConfig } from "./config/parser";
 import { isUpdateDue, resolveDirectories } from "./scheduler";
@@ -108,11 +107,11 @@ async function run(): Promise<void> {
       );
 
       // Fetch registry metadata for each package
-      const packageResults: PackageScanResult[] = [];
+      const slottedResults: (PackageScanResult | null)[] = new Array(uniqueDeps.length).fill(null);
       let skipped = 0;
 
       await Promise.allSettled(
-        uniqueDeps.map(async (dep) => {
+        uniqueDeps.map(async (dep, i) => {
           let metadata: PackageMetadata | null = null;
           try {
             metadata = await registry.fetchMetadata(dep.name, dep.currentVersion);
@@ -130,7 +129,7 @@ async function run(): Promise<void> {
             dep.currentVersion !== null &&
             dep.currentVersion !== metadata.latestVersion;
 
-          packageResults.push({
+          slottedResults[i] = {
             name: dep.name,
             current_version: dep.currentVersion,
             latest_version: metadata.latestVersion,
@@ -138,16 +137,18 @@ async function run(): Promise<void> {
             dependency_type: dep.dependencyType,
             registry_url: metadata.registryUrl,
             published_at: metadata.publishedAt,
-          });
+          };
         })
       );
+
+      const packageResults = slottedResults.filter((r): r is PackageScanResult => r !== null);
 
       ecosystemResults.push({
         ecosystem,
         directory,
         scanned_at: now.toISOString(),
         packages: packageResults,
-        skipped_packages: skipped,
+        ...(skipped > 0 ? { skipped_packages: skipped } : {}),
       });
     }
   }
@@ -159,10 +160,15 @@ async function run(): Promise<void> {
   core.setOutput("results-path", absoluteOutputFile);
 
   const apiKey = core.getInput("api-key");
+  const apiEndpoint = core.getInput("api-endpoint");
   if (apiKey) {
+    if (!apiEndpoint) {
+      core.setFailed("api-key is set but api-endpoint is empty — provide the ingest URL");
+      return;
+    }
     core.info("Longears: delivering report to ingest API...");
     try {
-      const response = await axios.post(API_ENDPOINT, report, {
+      const response = await axios.post(apiEndpoint, report, {
         headers: {
           "Authorization": `Bearer ${apiKey}`,
           "Content-Type":  "application/json",
