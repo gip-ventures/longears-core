@@ -6,6 +6,8 @@ import axios from "axios";
 import { create as createGlobber } from "@actions/glob";
 import { parseConfig } from "./config/parser";
 import { isUpdateDue, resolveDirectories } from "./scheduler";
+import { readTriggerContext, resolveTriggerEvent } from "./trigger";
+import { getChangedFiles, matchChangedManifests } from "./changed-files";
 import { getParser } from "./manifest-parsers/index";
 import { getRegistry } from "./registries/index";
 import type { Dependency } from "./manifest-parsers/types";
@@ -44,18 +46,60 @@ async function run(): Promise<void> {
   const now = new Date();
   const ecosystemResults: EcosystemScanResult[] = [];
 
+  // Decide which trigger mode applies to this run.
+  const triggerEvents = longearsConfig.trigger ?? ["schedule"];
+  const triggerCtx = readTriggerContext();
+  const triggerEvent = resolveTriggerEvent(triggerCtx);
+
+  if (!triggerEvent || !triggerEvents.includes(triggerEvent)) {
+    core.info(
+      `Longears: event "${triggerCtx.eventName ?? "local"}" (resolved: ${triggerEvent ?? "unsupported"}) ` +
+        `is not enabled in trigger config [${triggerEvents.join(", ")}]; nothing to do.`
+    );
+    const emptyReport = buildReport([]);
+    writeReportFile(emptyReport, absoluteOutputFile);
+    core.setOutput("results-path", absoluteOutputFile);
+    return;
+  }
+
+  const changedFilesMode =
+    triggerEvent === "pull_request" || triggerEvent === "push_default";
+  let changedFiles: string[] = [];
+  if (changedFilesMode) {
+    changedFiles = await getChangedFiles(githubToken);
+    core.info(
+      `Longears: ${changedFiles.length} changed file(s) detected for ${triggerEvent}`
+    );
+  }
+
   for (const updateConfig of longearsConfig.updates) {
     const ecosystem = updateConfig["package-ecosystem"];
-
-    if (!isUpdateDue(updateConfig, longearsConfig, now, force)) {
-      core.info(
-        `[${ecosystem}] Skipping — not scheduled for ${now.toUTCString()}`
-      );
-      continue;
-    }
-
     const directories = resolveDirectories(updateConfig);
     const parser = getParser(ecosystem);
+
+    // Gate: schedule mode uses the time-based schedule; changed-files mode runs
+    // the whole ecosystem when any of its manifests changed (force overrides both).
+    let triggeredByFiles: string[] = [];
+    if (changedFilesMode && !force) {
+      triggeredByFiles = matchChangedManifests(
+        changedFiles,
+        directories,
+        parser.filePatterns
+      );
+      if (triggeredByFiles.length === 0) {
+        core.info(`[${ecosystem}] Skipping — no changed manifest files`);
+        continue;
+      }
+      core.info(`[${ecosystem}] Triggered by: ${triggeredByFiles.join(", ")}`);
+    } else if (!changedFilesMode) {
+      if (!isUpdateDue(updateConfig, longearsConfig, now, force)) {
+        core.info(
+          `[${ecosystem}] Skipping — not scheduled for ${now.toUTCString()}`
+        );
+        continue;
+      }
+    }
+
     const registry = getRegistry(ecosystem, githubToken);
 
     for (const directory of directories) {
@@ -149,6 +193,9 @@ async function run(): Promise<void> {
         scanned_at: now.toISOString(),
         packages: packageResults,
         ...(skipped > 0 ? { skipped_packages: skipped } : {}),
+        ...(triggeredByFiles.length > 0
+          ? { triggered_by_files: triggeredByFiles }
+          : {}),
       });
     }
   }
