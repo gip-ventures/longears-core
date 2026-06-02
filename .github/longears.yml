@@ -1,5 +1,11 @@
 version: 2
 
+# Trigger modes this run responds to:
+#   schedule     — scheduled/manual runs use each ecosystem's configured schedule
+#   pull_request — scan ecosystems whose manifests changed in the PR
+#   push_default — scan ecosystems whose manifests changed in a merge to the default branch
+trigger: [schedule, pull_request, push_default]
+
 updates:
   - package-ecosystem: "npm"
     directory: "/"

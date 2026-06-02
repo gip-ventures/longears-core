@@ -1,5 +1,11 @@
 version: 2
 
+# Optional: which events Longears responds to (default: [schedule]).
+#   schedule     — use each ecosystem's configured schedule (cron / workflow_dispatch)
+#   pull_request — scan only ecosystems whose manifest files changed in the PR
+#   push_default — same, for merges/pushes to the repository's default branch
+trigger: [schedule, pull_request, push_default]
+
 # Optional: define shared schedules that multiple ecosystems can reference
 multi-ecosystem-groups:
   monthly-low-priority:

@@ -3,6 +3,9 @@ name: Dependency Scan
 on:
   schedule:
     - cron: "0 * * * *"   # run hourly; per-ecosystem schedules control what actually executes
+  pull_request:           # scan ecosystems whose manifests changed in the PR
+  push:                   # scan ecosystems whose manifests changed on merge to main
+    branches: [main]
   workflow_dispatch:
     inputs:
       force:

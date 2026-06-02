@@ -18,6 +18,8 @@ export interface EcosystemScanResult {
   scanned_at: string;
   packages: PackageScanResult[];
   skipped_packages?: number;
+  /** Changed manifest files that triggered this scan (changed-files mode only). */
+  triggered_by_files?: string[];
 }
 
 export interface ScanReport {

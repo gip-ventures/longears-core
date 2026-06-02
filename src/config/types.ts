@@ -14,6 +14,8 @@ export type Ecosystem =
   | "pip"
   | "pub";
 
+export type TriggerEvent = "schedule" | "pull_request" | "push_default";
+
 export type DayOfWeek =
   | "monday"
   | "tuesday"
@@ -70,6 +72,7 @@ export interface UpdateConfig {
 
 export interface LongearsConfig {
   version: 2;
+  trigger?: TriggerEvent[];
   "multi-ecosystem-groups"?: Record<string, MultiEcosystemGroup>;
   updates: UpdateConfig[];
 }

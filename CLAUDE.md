@@ -2,7 +2,13 @@
 
 ## Project Overview
 
-**Longears** is a TypeScript/Node.js GitHub Action (Node 24.15, entrypoint `dist/index.js`) that reads a `longears.yml` configuration file, determines which package ecosystems are scheduled to run, globs their manifest files, deduplicates dependencies by name (first-occurrence wins), and queries each registry in parallel via `Promise.allSettled()`. Results are written to a JSON file.
+**Longears** is a TypeScript/Node.js GitHub Action (Node 24.15, entrypoint `dist/index.js`) that reads a `longears.yml` configuration file, determines which package ecosystems should run, globs their manifest files, deduplicates dependencies by name (first-occurrence wins), and queries each registry in parallel via `Promise.allSettled()`. Results are written to a JSON file.
+
+**Trigger modes:** which ecosystems run is gated by the event that started the run, controlled by the top-level `trigger` config field (default `[schedule]`):
+- **schedule** (cron / `workflow_dispatch`) — each ecosystem runs on its own configured schedule (`isUpdateDue()` in `scheduler.ts`).
+- **pull_request** / **push_default** (push to the default branch) — Longears asks the GitHub API which files changed (`changed-files.ts`), and runs an ecosystem only when one of its manifest files changed (`matchChangedManifests()`). The whole ecosystem is scanned if any of its manifests changed.
+
+`src/trigger.ts` resolves the active event from the runner env; `force` overrides both gates.
 
 **Scope boundary:** Longears only collects dependency metadata. It does not open pull requests — that is a downstream concern.
 
@@ -20,6 +26,8 @@ longears-core/
   src/
     main.ts                     # Entry point — orchestration only, no parsing/registry logic
     scheduler.ts                # isScheduleDue(), resolveSchedule(), resolveDirectories()
+    trigger.ts                  # readTriggerContext(), resolveTriggerEvent() — event → mode
+    changed-files.ts            # getChangedFiles() (GitHub API), matchChangedManifests()
     metadata-logger.ts          # buildReport(), logReport(), writeReportFile(); output types
     config/
       parser.ts                 # parseConfig() — reads YAML, validates via Zod
@@ -118,7 +126,7 @@ Any new ecosystem requiring authentication must follow this factory pattern.
 ```bash
 npm run build     # tsc --noEmit (type-check) + esbuild bundle → dist/index.js
 npm run compile   # tsc full compile to dist/ (NOT the action bundle — rarely needed)
-npm test          # Jest via ts-jest; test files: src/__tests__/**/*.test.ts (none exist yet)
+npm test          # Jest via ts-jest; test files: src/__tests__/**/*.test.ts
 npm run lint      # ESLint on src/**/*.ts
 ```
 
@@ -242,6 +250,12 @@ git commit -m "feat: add <ecosystem> ecosystem support"
 ```yaml
 version: 2  # must be exactly the integer 2
 
+trigger: [schedule, pull_request, push_default]  # optional; default [schedule]
+# schedule     — cron/workflow_dispatch runs use per-ecosystem schedules
+# pull_request — run ecosystems whose manifests changed in the PR
+# push_default — same, for pushes/merges to the default branch
+# Events not listed here are ignored (the run exits writing an empty report).
+
 multi-ecosystem-groups:
   group-name:
     schedule:
@@ -296,7 +310,9 @@ Written to `longears-results.json` (gitignored) by `src/metadata-logger.ts`:
           published_at?: string      // ISO 8601; absent if registry doesn't provide it
         }
       ],
-      skipped_packages?: number     // count of packages where registry returned null
+      skipped_packages?: number,    // count of packages where registry returned null
+      triggered_by_files?: string[] // changed manifest paths that triggered this scan
+                                    // (changed-files mode only; absent in schedule mode)
     }
   ]
 }
@@ -307,13 +323,13 @@ Written to `longears-results.json` (gitignored) by `src/metadata-logger.ts`:
 ## CI/CD Notes
 
 **Workflow:** `.github/workflows/self-update.yml`
-- Triggers: hourly cron (`0 * * * *`) and `workflow_dispatch` (with optional `force` input)
+- Triggers: hourly cron (`0 * * * *`), `pull_request`, `push` to the default branch, and `workflow_dispatch` (with optional `force` input)
 - Uses `uses: ./` — the local action ref, which means it always tests the committed `dist/index.js`
 - Requires only `contents: read` permission
 - Uploads results as a `longears-results` artifact (7-day retention); nothing is committed back
 - `longears-results.json` is gitignored
 
-The hourly cron fires every hour; per-ecosystem schedules in `.github/longears.yml` control which ecosystems actually execute each run.
+The hourly cron fires every hour; per-ecosystem schedules in `.github/longears.yml` control which ecosystems actually execute each scheduled run. On `pull_request` / `push` events the action runs in changed-files mode instead — only ecosystems with a changed manifest are scanned. The `trigger` field in `.github/longears.yml` must include the corresponding mode for the event to do anything; the workflow `on:` filters and the config `trigger` list are maintained together.
 
 ---
 
@@ -338,4 +354,4 @@ The hourly cron fires every hour; per-ecosystem schedules in `.github/longears.y
 
 **Do not change `Promise.allSettled()` to `Promise.all()`** in the registry fetch loop in `main.ts` — one slow or broken registry must not abort the entire scan.
 
-**No tests exist yet.** When adding tests, create files at `src/__tests__/<name>.test.ts` to match Jest's configured `testMatch` pattern.
+**Tests** live at `src/__tests__/<name>.test.ts` to match Jest's configured `testMatch` pattern (e.g. `trigger.test.ts`, `changed-files.test.ts`). `tsconfig.json` includes `jest` in `types` so ts-jest sees the globals; keep test files out of the build via the existing `**/__tests__/**` exclude. Prefer pure, network-free units (e.g. `resolveTriggerEvent`, `matchChangedManifests`).

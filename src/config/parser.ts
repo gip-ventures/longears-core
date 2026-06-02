@@ -86,6 +86,9 @@ const updateConfigSchema = z.object({
 
 const longearsConfigSchema = z.object({
   version: z.literal(2),
+  trigger: z
+    .array(z.enum(["schedule", "pull_request", "push_default"]))
+    .optional(),
   "multi-ecosystem-groups": z
     .record(z.string(), z.object({ schedule: scheduleSchema }))
     .optional(),

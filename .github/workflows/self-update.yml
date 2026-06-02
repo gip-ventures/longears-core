@@ -4,6 +4,11 @@ on:
   schedule:
     # Run every hour; the action itself checks per-ecosystem schedules
     - cron: "0 * * * *"
+  pull_request:
+    # Scan ecosystems whose manifests changed in the PR
+  push:
+    # Scan ecosystems whose manifests changed when merged to the default branch
+    branches: [claude/dependency-update-service-1APX7]
   workflow_dispatch:
     inputs:
       force:
