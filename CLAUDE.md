@@ -331,6 +331,8 @@ Written to `longears-results.json` (gitignored) by `src/metadata-logger.ts`:
 
 The hourly cron fires every hour; per-ecosystem schedules in `.github/longears.yml` control which ecosystems actually execute each scheduled run. On `pull_request` / `push` events the action runs in changed-files mode instead — only ecosystems with a changed manifest are scanned. The `trigger` field in `.github/longears.yml` must include the corresponding mode for the event to do anything; the workflow `on:` filters and the config `trigger` list are maintained together.
 
+**Push trigger paths must stay in sync with parser `filePatterns`:** The push-based usage option documented in `README.md` contains a `paths:` allowlist that is a manual mirror of the `filePatterns` arrays in `src/manifest-parsers/`. When adding a new ecosystem, add its file patterns to the README push-trigger example. Note: `.github/workflows/*.yml` is deliberately omitted from the push paths to prevent the workflow from retriggering itself — the github-actions ecosystem is not covered by the push-based option.
+
 ---
 
 ## Known Gaps and AI Guidance

@@ -27,7 +27,11 @@ Longears reads a `longears.yml` configuration file, determines which ecosystems 
 
 ## Usage
 
-Add a workflow that runs Longears on a schedule:
+Choose one of two trigger strategies — schedule-based or push-based. Both support `workflow_dispatch` for manual runs.
+
+### Option A: Schedule-based
+
+Longears runs on a cron and uses per-ecosystem schedules in `longears.yml` to decide what actually executes each run.
 
 ```yaml
 name: Dependency Scan
@@ -57,6 +61,79 @@ jobs:
         with:
           config-path: .github/longears.yml
           force: ${{ inputs.force || 'false' }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          output-file: longears-results.json
+
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        with:
+          name: longears-results
+          path: ${{ steps.longears.outputs.results-path }}
+```
+
+### Option B: Push-based
+
+Longears runs immediately when a manifest file is pushed to `main`. `force: true` is always set so the per-ecosystem schedule gate is bypassed — runs triggered by a file change should always execute regardless of the configured time window.
+
+Include only the manifest file patterns for the ecosystems you have configured. The example below covers all 14 supported ecosystems; trim it to match your `longears.yml`.
+
+> **Note:** `.github/workflows/*.yml` is intentionally omitted from the `paths` list. Including it would cause this workflow to retrigger itself on every edit. The github-actions ecosystem is not covered by this trigger strategy — remove it from your `longears.yml` or switch to Option A if you need it.
+
+```yaml
+name: Dependency Scan
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "package.json"
+      - "requirements.txt"
+      - "requirements/**/*.txt"
+      - "requirements-*.txt"
+      - "Pipfile"
+      - "pyproject.toml"
+      - "Gemfile"
+      - "Gemfile.lock"
+      - "pom.xml"
+      - "**/pom.xml"
+      - "go.mod"
+      - "composer.json"
+      - "**/*.csproj"
+      - "**/*.fsproj"
+      - "**/*.vbproj"
+      - "**/packages.config"
+      - "**/Directory.Packages.props"
+      - "global.json"
+      - "Dockerfile"
+      - "Dockerfile.*"
+      - "*.dockerfile"
+      - "docker-compose.yml"
+      - "docker-compose.yaml"
+      - "mix.exs"
+      - "pubspec.yaml"
+      - "pubspec.yml"
+      - ".devcontainer/devcontainer.json"
+      - ".devcontainer.json"
+      - ".devcontainer/**/devcontainer.json"
+      - ".gitmodules"
+  workflow_dispatch:
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Longears
+        uses: gip-ventures/longears-core@v1
+        id: longears
+        with:
+          config-path: .github/longears.yml
+          force: 'true'
           github-token: ${{ secrets.GITHUB_TOKEN }}
           output-file: longears-results.json
 
